@@ -1,15 +1,25 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class Rocket : MonoBehaviour
 {
     // SerializeField makes the data member editable through inspector and non-editable through other scripts
     // The value specified here for SerializeField is just the default value which will be shown on inspector
+    [SerializeField] float levelLoadDelay = 2f;
+
     [SerializeField] float mainThrust = 100f;  // thrust for flying up
     [SerializeField] float rcsThrust = 100f;   // thrust for rotation, rcs : rotation control system
+
     [SerializeField] AudioClip thrustSound;
     [SerializeField] AudioClip deathSound;
     [SerializeField] AudioClip levelCompleteSound;
+
+    [SerializeField] ParticleSystem thrustParticles;
+    [SerializeField] ParticleSystem deathParticles;
+    [SerializeField] ParticleSystem levelCompleteParticles;
+
+    bool colisionDisabled = false;
 
     Rigidbody rigidbody;
     AudioSource audioSource;
@@ -32,6 +42,11 @@ public class Rocket : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
+        if (colisionDisabled)  // for debug mode, we use 'C' key to toggle this
+        {
+            return;
+        }
+
         if (state != State.Alive) // ignore collisions after dying or transcending state is reached
         {
             return;
@@ -57,14 +72,16 @@ public class Rocket : MonoBehaviour
     {
         audioSource.Stop();
         audioSource.PlayOneShot(levelCompleteSound);
-        Invoke("LoadNextLevel", 1f);
+        levelCompleteParticles.Play();
+        Invoke("LoadNextLevel", levelLoadDelay);
     }
 
     private void StartDeathSequence()
     {
         audioSource.Stop();
         audioSource.PlayOneShot(deathSound);
-        Invoke("LoadFirstLevel", 1f);
+        deathParticles.Play();
+        Invoke("LoadFirstLevel", levelLoadDelay);
     }
 
     private void LoadFirstLevel()
@@ -75,8 +92,15 @@ public class Rocket : MonoBehaviour
 
     private void LoadNextLevel()
     {
-        //state = State.Alive; when a level is loaded the state becomes alive by default
-        SceneManager.LoadScene(1);
+        //state = State.Alive; when a new level is loaded the state becomes alive by default so no need to set explicitly
+
+        int currSceneIdx = SceneManager.GetActiveScene().buildIndex;
+        int nextSceneIdx = currSceneIdx + 1;
+        if (nextSceneIdx == SceneManager.sceneCountInBuildSettings)
+        {
+            nextSceneIdx = 0;
+        }
+        SceneManager.LoadScene(nextSceneIdx);
     }
 
     private void ProcessInput()
@@ -88,13 +112,30 @@ public class Rocket : MonoBehaviour
 
         RespondToThrustInput();
         RespondToRotationInput();
+
+        if (Debug.isDebugBuild)   // This just makes sure that we only respond to debug keys for the builds for which development mode is ON in build settings of unity, so these keys won't work when we go for production build
+        {
+            RespondToDebugKeys();
+        }
+    }
+
+    private void RespondToDebugKeys()
+    {
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            LoadNextLevel();
+        }
+        else if (Input.GetKeyDown(KeyCode.C))
+        {
+            colisionDisabled = !colisionDisabled;
+        }
     }
 
     private void RespondToThrustInput()
     {
         if (Input.GetKey(KeyCode.Space))
         {
-            float flyingSpeed = mainThrust;
+            float flyingSpeed = mainThrust * Time.deltaTime;
                 
             rigidbody.AddRelativeForce(Vector3.up * flyingSpeed);
 
@@ -103,10 +144,16 @@ public class Rocket : MonoBehaviour
                 audioSource.PlayOneShot(thrustSound);
             }
 
+            if (!thrustParticles.isEmitting)
+            {
+                thrustParticles.Play();
+            }     
+
         }
         else
         {
             audioSource.Stop();
+            thrustParticles.Stop();
         }
     }
 
