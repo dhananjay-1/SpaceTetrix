@@ -81,6 +81,8 @@ public class Rocket : MonoBehaviour
         audioSource.Stop();
         audioSource.PlayOneShot(deathSound);
         deathParticles.Play();
+
+        FuelTank.ResetFuel();
         Invoke("LoadFirstLevel", levelLoadDelay);
     }
 
@@ -98,15 +100,23 @@ public class Rocket : MonoBehaviour
         int nextSceneIdx = currSceneIdx + 1;
         if (nextSceneIdx == SceneManager.sceneCountInBuildSettings)
         {
-            nextSceneIdx = 0;
+            nextSceneIdx = 1;
         }
-        SceneManager.LoadScene(nextSceneIdx);
+        FuelTank.nextRocketLevel = nextSceneIdx;
+        SceneManager.LoadScene(0);
     }
 
     private void ProcessInput()
     {
         if (state != State.Alive)
         {
+            return;
+        }
+
+        if (FuelTank.CheckFuel() == false)
+        {
+            state = State.Dead;
+            StartDeathSequence();
             return;
         }
 
@@ -138,6 +148,8 @@ public class Rocket : MonoBehaviour
             float flyingSpeed = mainThrust * Time.deltaTime;
                 
             rigidbody.AddRelativeForce(Vector3.up * flyingSpeed);
+
+            ScorePanel.DecreaseFuel();
 
             if (!audioSource.isPlaying)
             {

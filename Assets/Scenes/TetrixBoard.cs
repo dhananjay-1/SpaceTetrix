@@ -1,5 +1,6 @@
 ﻿
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class TetrixBoard : MonoBehaviour
 {
@@ -11,6 +12,7 @@ public class TetrixBoard : MonoBehaviour
 
     static Vector3 spawnPosition = new Vector3(10, 20, 0);
     static Vector3 lineCompleteLoc = new Vector3(1, 0, -1);
+    static int linesCompleted = 0;
 
     const int boardHeight = 20;
     const int boardWidth = 20;  // it is equal to the x pos of right boundary of board
@@ -86,7 +88,7 @@ public class TetrixBoard : MonoBehaviour
         if (row >= boardHeight)
         {
             // Stop the game
-            print("Game stopped");
+            LoadNextLevel();
             return;
         }
 
@@ -106,11 +108,27 @@ public class TetrixBoard : MonoBehaviour
         }
     }
 
+    private static void LoadNextLevel()
+    {
+        SceneManager.LoadScene(FuelTank.nextRocketLevel);
+    }
+
 
     // Update is called once per frame
     void Update()
     {
-      
+        if (Debug.isDebugBuild)   // This just makes sure that we only respond to debug keys for the builds for which development mode is ON in build settings of unity, so these keys won't work when we go for production build
+        {
+            RespondToDebugKeys();
+        }
+    }
+
+    private void RespondToDebugKeys()
+    {
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            LoadNextLevel();
+        }
     }
 
     private static void SpawnNewPiece()
@@ -124,5 +142,8 @@ public class TetrixBoard : MonoBehaviour
     private static void SpawnNewLine()
     {
         Instantiate(staticTetrixLine, lineCompleteLoc, Quaternion.identity);
+
+        ++linesCompleted;
+        ScorePanel.AddFuel();
     }
 }
